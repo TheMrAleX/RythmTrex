@@ -11,6 +11,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -20,6 +22,8 @@ import androidx.compose.ui.text.font.*
 import androidx.compose.ui.unit.*
 import app.saltabeat.R
 
+val LocalVibration=staticCompositionLocalOf{true}
+
 val Sky=Color(0xFF1A1033)
 val Surface=Color(0xFF231544)
 val SurfaceHigh=Color(0xFF2E1C58)
@@ -27,9 +31,12 @@ val Accent=Color(0xFF2EE6C5)
 val Gold=Color(0xFFFFD166)
 val Miss=Color(0xFFFF5A6E)
 val Muted=Color.White.copy(alpha=.65f)
-val Rounded=FontFamily(Font(R.font.fredoka,FontWeight.Black),Font(R.font.fredoka,FontWeight.Medium))
+@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+val Rounded=FontFamily(
+    Font(R.font.fredoka,FontWeight.Black,variationSettings=FontVariation.Settings(FontVariation.weight(700))),
+    Font(R.font.fredoka,FontWeight.Medium,variationSettings=FontVariation.Settings(FontVariation.weight(600))))
 
-@Composable fun Label(text:String,size:Int=16,color:Color=Color.White,modifier:Modifier=Modifier,weight:FontWeight=FontWeight.Black) {
+@Composable fun Label(text:String,size:Int=16,color:Color=Color.White,modifier:Modifier=Modifier,weight:FontWeight=if(size>=18)FontWeight.Black else FontWeight.Medium) {
     Text(text,modifier,color=color,fontSize=size.sp,fontFamily=Rounded,fontWeight=weight,
         style=LocalTextStyle.current.copy(fontFeatureSettings="tnum"))
 }
@@ -39,13 +46,14 @@ val Rounded=FontFamily(Font(R.font.fredoka,FontWeight.Black),Font(R.font.fredoka
     val pressed by interaction.collectIsPressedAsState()
     val down by animateDpAsState(if(pressed)4.dp else 0.dp,tween(80),label="press")
     val haptic=LocalHapticFeedback.current
+    val vibrate=LocalVibration.current
     val fill=when(variant){0->Accent;1->Color.White;else->Color.Transparent}
     val ink=if(variant==2)Color.White else Sky
-    Box(modifier.fillMaxWidth().heightIn(min=60.dp).padding(bottom=4.dp)
+    Box(modifier.fillMaxWidth().heightIn(min=60.dp)
         .background(if(variant==2)Color.Transparent else fill.copy(red=fill.red*.75f,green=fill.green*.75f,blue=fill.blue*.75f),RoundedCornerShape(50))
-        .offset(y=down).clip(RoundedCornerShape(50)).background(fill)
+        .padding(bottom=4.dp).offset(y=down).clip(RoundedCornerShape(50)).background(fill)
         .then(if(variant==2)Modifier.border(2.dp,Color.White.copy(alpha=.4f),RoundedCornerShape(50)) else Modifier)
-        .clickable(interactionSource=interaction,indication=null,role=Role.Button){haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove);onClick()}
+        .clickable(interactionSource=interaction,indication=null,role=Role.Button){if(vibrate)haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove);onClick()}
         .padding(horizontal=20.dp,vertical=16.dp),contentAlignment=Alignment.Center) {
         Label(text,18,ink)
     }
@@ -60,7 +68,7 @@ val Rounded=FontFamily(Font(R.font.fredoka,FontWeight.Black),Font(R.font.fredoka
         }
     }
 }
-private fun Modifier.toggleableCompat(value:Boolean,onChange:(Boolean)->Unit)=this.semantics{role=Role.Switch}.clickable{onChange(!value)}
+private fun Modifier.toggleableCompat(value:Boolean,onChange:(Boolean)->Unit)=this.toggleable(value=value,role=Role.Switch,onValueChange=onChange)
 
 @Composable fun VolumeRow(title:String,value:Float,onChange:(Float)->Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp)) {
@@ -91,4 +99,11 @@ private fun Modifier.toggleableCompat(value:Boolean,onChange:(Boolean)->Unit)=th
 }
 @Composable fun Panel(modifier:Modifier=Modifier,content:@Composable ColumnScope.()->Unit) {
     Column(modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Surface).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp),content=content)
+}
+
+@Composable fun Entrance(delayMs:Long,content:@Composable ()->Unit) {
+    var visible by remember{mutableStateOf(false)}
+    LaunchedEffect(Unit){kotlinx.coroutines.delay(delayMs);visible=true}
+    val progress by animateFloatAsState(if(visible)1f else 0f,tween(400,easing=FastOutSlowInEasing),label="entrance")
+    Box(Modifier.fillMaxWidth().graphicsLayer{alpha=progress;translationY=(1-progress)*20.dp.toPx()}){content()}
 }

@@ -3,10 +3,11 @@ package app.saltabeat.engine
 import kotlin.math.*
 
 /** Original procedural score. Envelopes derive from absolute song phase, never a frame delta. */
-class Synth(private val tempo: Tempo,private val clicksOnly: Boolean,seed:Long) {
+class Synth(private val tempo: Tempo,private val clicksOnly: Boolean,private val seed:Long) {
     private var noise=0x7a51
-    private var fx=0
-    private var fxAge=100.0
+    private val fxKinds=IntArray(4)
+    private val fxAges=DoubleArray(4){100.0}
+    private var nextVoice=0
     private val chords=arrayOf(intArrayOf(45,48,52,43),intArrayOf(48,55,57,53),intArrayOf(50,53,57,48),intArrayOf(43,47,50,45))
     private val progressionIndex=kotlin.random.Random(seed).nextInt(4)
     private val progression=chords[progressionIndex]
@@ -14,7 +15,7 @@ class Synth(private val tempo: Tempo,private val clicksOnly: Boolean,seed:Long) 
     private var bassLow=0.0
     private var snareLow=0.0
     private var previousNoise=0.0
-    fun trigger(kind: Int) {fx=kind;fxAge=0.0}
+    fun trigger(kind: Int) {fxKinds[nextVoice]=kind;fxAges[nextVoice]=0.0;nextVoice=(nextVoice+1)%4}
     private fun random():Double {noise=noise xor (noise shl 13);noise=noise xor (noise ushr 17);noise=noise xor (noise shl 5);return noise.toDouble()/Int.MAX_VALUE}
     private fun hz(midi:Int)=440*2.0.pow((midi-69)/12.0)
     fun sample(t: Double,music: Float,effects: Float): Double {
@@ -28,11 +29,12 @@ class Synth(private val tempo: Tempo,private val clicksOnly: Boolean,seed:Long) 
         snareLow+=.25*(n-snareLow)
         var out=0.0
         if(clicksOnly) {
-            if(beatIndex in 2..9 && second<.035) out=sin(2*PI*1100*second)*exp(-second*100)*.6
+            if(beatIndex in (if(seed==Long.MIN_VALUE)0..3 else 2..9) && second<.035) out=sin(2*PI*1100*second)*exp(-second*100)*.6
         } else {
             if(second<.12) out+=sin(2*PI*(45*second+105*.024*(1-exp(-second/.024))))*exp(-second*30)*.6
             val half=beat*2-floor(beat*2)
-            if(half<.09) out+=high*exp(-half*40)*.16
+            val hatSeconds=half*30/tempo.bpmAt(t)
+            if(hatSeconds<.03) out+=high*exp(-hatSeconds*160)*.16
             val root=progression[(floor(beat/16).toInt()%4+4)%4]
             if(stage>=2) {
                 val f=hz(root)
@@ -51,11 +53,12 @@ class Synth(private val tempo: Tempo,private val clicksOnly: Boolean,seed:Long) 
             if(stage>=4 && beatIndex%8==7) out+=sin(2*PI*hz(root+19)*t)*exp(-phase*12)*.07
         }
         var sfx=0.0
-        if(fxAge<.35) {
+        for(voice in 0..3) if(fxAges[voice]<.35) {
+            val fx=fxKinds[voice];val fxAge=fxAges[voice]
             val f=when(fx) {1->1320.0;2->880.0;3->70.0;4->660+floor(fxAge/.07)*220;else->880.0}
-            sfx=sin(2*PI*f*fxAge)*exp(-fxAge*(if(fx==4)9 else 30))*.25
-            fxAge+=1.0/44100
+            sfx+=sin(2*PI*f*fxAge)*exp(-fxAge*(if(fx==4)9 else 30))*.25
+            fxAges[voice]+=1.0/44100
         }
-        return tanh(out*music+sfx*effects)
+        return tanh(out*(if(clicksOnly)effects else music)+sfx*effects)
     }
 }

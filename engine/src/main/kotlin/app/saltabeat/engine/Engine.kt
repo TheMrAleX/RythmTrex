@@ -63,7 +63,7 @@ data class Note(val id: Int, val hit: Double, val encounter: Double, val kind: K
     fun obstacleX(time: Double, runnerX: Double) = runnerX + speed*(encounter-time)
 }
 
-/** At most two simultaneous circles: 1.1s approach / >=.6s spacing. */
+/** At most two simultaneous circles: 1.1s approach / >=.65s spacing. */
 class Patterns(seed: Long, val tempo: Tempo, width: Double = 360.0, height: Double = 240.0) {
     private val random=Random(seed)
     private var beat=4.0
@@ -71,7 +71,7 @@ class Patterns(seed: Long, val tempo: Tempo, width: Double = 360.0, height: Doub
     private var index=0
     private var pending: Note?=null
     private val width=width.coerceAtLeast(320.0)
-    private val height=height.coerceAtLeast(240.0)
+    private val height=height.coerceAtLeast(112.0)
     private fun note(at: Double, kind: Kind, part: Int): Note {
         // Alternating diagonal halves leave room for two generous hit regions.
         val side=index%2

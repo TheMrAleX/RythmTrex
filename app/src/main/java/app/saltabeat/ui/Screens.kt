@@ -41,11 +41,11 @@ private fun number(n:Int)=NumberFormat.getIntegerInstance(Locale.forLanguageTag(
             else->vm.navigate(Screen.SETTINGS.takeIf{s.screen==Screen.ABOUT || s.screen==Screen.CLEAR}?:Screen.HOME)
         }
     }
-    MaterialTheme {
+    CompositionLocalProvider(LocalVibration provides s.settings.vibration) { MaterialTheme {
         BoxWithConstraints(Modifier.fillMaxSize().background(Sky)) {
             val density=androidx.compose.ui.platform.LocalDensity.current
             val nav=with(density){WindowInsets.navigationBars.getBottom(this).toDp()}
-            val pad=(maxHeight*.34f).coerceIn(240.dp,320.dp)+nav
+            val pad=(maxHeight*.34f).coerceIn(240.dp,320.dp)
             SideEffect{vm.width=maxWidth.value.toDouble();vm.padHeight=(pad-nav).value.toDouble()}
             if(s.screen in listOf(Screen.HOME,Screen.DIFFICULTY,Screen.GAME,Screen.COUNTDOWN,Screen.PAUSE,Screen.OVER,Screen.TUTORIAL)) {
                 GameCanvas(vm.game.takeIf{s.screen!=Screen.HOME && s.screen!=Screen.DIFFICULTY},vm.audio,s.settings,pad,
@@ -62,39 +62,54 @@ private fun number(n:Int)=NumberFormat.getIntegerInstance(Locale.forLanguageTag(
                         .clickable(onClick=vm::pause).semantics{contentDescription=vm.getApplication<android.app.Application>().getString(R.string.pause_action)},contentAlignment=Alignment.Center){Label("Ⅱ",24)}
                 }
                 Screen.PAUSE->PauseScreen(vm::resume,{vm.newRun()}){vm.navigate(Screen.HOME)}
-                Screen.OVER->OverScreen(vm.game,s.newRecord,{vm.newRun()}){vm.navigate(Screen.HOME)}
+                Screen.OVER->OverScreen(vm.game,s.newRecord,{vm.newRun()},{vm.navigate(Screen.HOME)},s.settings.reduce)
                 Screen.TUTORIAL->TutorialScreen(s.tutorialStep,vm::tutorialNext,vm::tutorialDone)
-                Screen.CALIBRATION->CalibrationScreen(s,vm.audio::time,vm::calibrationTap,vm::adjust,vm::saveCalibration,{vm.calibrate()},vm::skipCalibration)
+                Screen.CALIBRATION->CalibrationScreen(s,vm.audio::time,vm::calibrationTap,vm::adjust,vm::saveCalibration,vm::repeatCalibration,vm::skipCalibration)
                 Screen.SETTINGS->SettingsScreen(s.settings,vm::music,vm::effects,{vm.toggle("vibration",it)},{vm.toggle("reduce",it)},
                     {vm.calibrate()},{vm.navigate(Screen.CLEAR)},{vm.navigate(Screen.ABOUT)}){vm.navigate(Screen.HOME)}
                 Screen.ABOUT->SimpleScreen(stringResource(R.string.about),stringResource(R.string.about_body)){vm.navigate(Screen.SETTINGS)}
                 Screen.CLEAR->ConfirmScreen(vm::clearRecords){vm.navigate(Screen.SETTINGS)}
             }
+            if(s.screen==Screen.GAME) {
+                val judgment=s.judgment?.let{stringResource(when(it){Judgment.PERFECT->R.string.perfect;Judgment.GREAT->R.string.great;Judgment.GOOD->R.string.good;Judgment.EARLY->R.string.early;Judgment.MISS->R.string.miss})}.orEmpty()
+                val score=stringResource(R.string.score)+": "+s.points
+                val lives=stringResource(R.string.lives,s.lives)
+                Box(Modifier.semantics{liveRegion=LiveRegionMode.Polite;contentDescription="$judgment. $score. $lives"})
+            }
             if(!s.loaded) Box(Modifier.fillMaxSize().background(Sky),contentAlignment=Alignment.Center){Label(stringResource(R.string.loading))}
         }
-    }
+    }}
 }
 
 @Composable fun HomeScreen(record:Int,play:()->Unit,practice:()->Unit,settings:()->Unit) {
     var entered by remember{mutableStateOf(false)}
     LaunchedEffect(Unit){entered=true}
     val offset by animateDpAsState(if(entered)0.dp else (-40).dp,spring(dampingRatio=.7f),label="title")
-    Column(Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(20.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+    BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
+    val sceneGap=(maxHeight-408.dp).coerceAtLeast(80.dp)
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),horizontalAlignment=Alignment.CenterHorizontally) {
         Spacer(Modifier.height(28.dp))
-        Box(Modifier.offset(y=offset)) {
-            // Four small offsets form the specified warm outline without a default Material title.
-            for(dx in listOf(-2,2)) for(dy in listOf(-2,2)) Label(stringResource(R.string.app_name),56,Color(0xFFFF7A59),Modifier.offset(dx.dp,dy.dp))
-            Label(stringResource(R.string.app_name),56)
+        BoxWithConstraints(Modifier.fillMaxWidth().offset(y=offset)) {
+            val title=stringResource(R.string.app_name)
+            val measurer=androidx.compose.ui.text.rememberTextMeasurer()
+            val measured=measurer.measure(androidx.compose.ui.text.AnnotatedString(title),style=androidx.compose.ui.text.TextStyle(fontFamily=Rounded,fontWeight=FontWeight.Black,fontSize=56.sp)).size.width
+            val widthPx=with(androidx.compose.ui.platform.LocalDensity.current){maxWidth.toPx()}
+            val titleSize=(56*(widthPx/(measured+8)).coerceAtMost(1f)).toInt()
+            Box(Modifier.align(Alignment.Center)) {
+                for(dx in listOf(-2,2)) for(dy in listOf(-2,2)) Label(title,titleSize,Color(0xFFFF7A59),Modifier.offset(dx.dp,dy.dp))
+                Label(title,titleSize)
+            }
         }
         Label(stringResource(R.string.tagline),13,Muted)
         Spacer(Modifier.height(12.dp));Label(stringResource(R.string.record,number(record)),16,Gold)
-        Spacer(Modifier.height(168.dp))
+        Spacer(Modifier.height(sceneGap))
         Column(Modifier.widthIn(max=400.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-            Chunky(stringResource(R.string.play),onClick=play)
-            Chunky(stringResource(R.string.practice),1,onClick=practice)
-            Chunky(stringResource(R.string.settings),2,onClick=settings)
+            Entrance(0){Chunky(stringResource(R.string.play),onClick=play)}
+            Entrance(80){Chunky(stringResource(R.string.practice),1,onClick=practice)}
+            Entrance(160){Chunky(stringResource(R.string.settings),2,onClick=settings)}
         }
     }
+}
 }
 @Composable fun DifficultySheet(select:(Difficulty)->Unit,back:()->Unit) {
     Box(Modifier.fillMaxSize().background(Sky.copy(alpha=.65f)),contentAlignment=Alignment.BottomCenter) {
@@ -126,16 +141,23 @@ private fun number(n:Int)=NumberFormat.getIntegerInstance(Locale.forLanguageTag(
     var target by remember{mutableFloatStateOf(1.4f)}
     LaunchedEffect(count){target=1.4f;kotlinx.coroutines.delay(16);target=1f}
     val scale by animateFloatAsState(target,tween(250),label="countdown")
-    Box(Modifier.fillMaxSize().background(Sky.copy(alpha=.25f)),contentAlignment=Alignment.Center){Label(if(count==0)stringResource(R.string.go) else count.toString(),96,Gold,Modifier.scale(scale))}
+    Box(Modifier.fillMaxSize().background(Sky.copy(alpha=.25f)),contentAlignment=Alignment.Center){
+        Label(if(count==0)stringResource(R.string.go) else count.toString(),96,Gold,Modifier.scale(scale))
+        Box(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom=80.dp).size(120.dp).border(4.dp,Color.White,RoundedCornerShape(50)),contentAlignment=Alignment.Center) {
+            Box(Modifier.size(72.dp).background(Accent,RoundedCornerShape(50)))
+        }
+    }
 }
 @Composable fun PauseScreen(resume:()->Unit,restart:()->Unit,exit:()->Unit) {
     Overlay(.85f) {Label(stringResource(R.string.pause),24);Chunky(stringResource(R.string.resume),onClick=resume);Chunky(stringResource(R.string.restart),1,onClick=restart);Chunky(stringResource(R.string.exit),2,onClick=exit)}
 }
-@Composable fun OverScreen(game:Game?,record:Boolean,again:()->Unit,menu:()->Unit) {
+@Composable fun OverScreen(game:Game?,record:Boolean,again:()->Unit,menu:()->Unit,reduce:Boolean=false) {
     val score=game?.score
     var target by remember{mutableIntStateOf(0)}
     LaunchedEffect(score){target=score?.points?:0}
     val animated by animateIntAsState(target,tween(800),label="final score")
+    Box(Modifier.fillMaxSize()) {
+    if(record && !reduce) Confetti()
     Overlay(.6f) {
         Label(stringResource(R.string.game_over),24)
         Label(number(animated),56,Gold)
@@ -146,6 +168,7 @@ private fun number(n:Int)=NumberFormat.getIntegerInstance(Locale.forLanguageTag(
         }
         Chunky(stringResource(R.string.again),onClick=again);Chunky(stringResource(R.string.menu),2,onClick=menu)
     }
+    }
 }
 @Composable private fun Stat(title:String,value:String) {Label(title,13,Muted);Label(value,24);Spacer(Modifier.height(8.dp))}
 @Composable fun TutorialScreen(step:Int,next:()->Unit,skip:()->Unit) {
@@ -154,9 +177,13 @@ private fun number(n:Int)=NumberFormat.getIntegerInstance(Locale.forLanguageTag(
         if(step==1) {
             val description=stringResource(R.string.tutorial_circle)
             Box(Modifier.fillMaxWidth().height(140.dp),contentAlignment=Alignment.Center) {
-                Box(Modifier.size(112.dp).border(6.dp,Color.White,RoundedCornerShape(50)),contentAlignment=Alignment.Center) {
-                    Box(Modifier.size(72.dp).clip(RoundedCornerShape(50)).background(Accent).clickable(onClick=next).semantics{contentDescription=description})
+                var target by remember{mutableFloatStateOf(108f)}
+                LaunchedEffect(Unit){target=36f}
+                val radius by animateFloatAsState(target,tween(1100,easing=LinearEasing),label="tutorial ring")
+                androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                    drawCircle(Color.White,radius.dp.toPx(),style=androidx.compose.ui.graphics.drawscope.Stroke(6.dp.toPx()))
                 }
+                Box(Modifier.size(72.dp).clip(RoundedCornerShape(50)).background(Accent).clickable(onClick=next).semantics{contentDescription=description})
             }
         } else Chunky(stringResource(R.string.next),onClick=next)
         Chunky(stringResource(R.string.skip),2,onClick=skip)
@@ -167,8 +194,10 @@ private fun number(n:Int)=NumberFormat.getIntegerInstance(Locale.forLanguageTag(
     Page(stringResource(R.string.calibration),skip) {
         Label(stringResource(R.string.calibration_hint),16,Muted)
         val description=stringResource(R.string.tap_calibration)
+        val subtractDescription=stringResource(R.string.subtract_ms)
+        val addDescription=stringResource(R.string.add_ms)
         var frame by remember{mutableLongStateOf(0)}
-        LaunchedEffect(Unit){while(true){withFrameNanos{frame=it}}}
+        LaunchedEffect(s.calibrationCount){if(s.calibrationCount<8)while(true){withFrameNanos{frame=it}}}
         val pulse=remember{derivedStateOf{frame;1f+(.6-(clock()%.6)).toFloat()*.1f}}
         Box(Modifier.fillMaxWidth().height(160.dp),contentAlignment=Alignment.Center) {
             Box(Modifier.size(120.dp).scale(if(s.settings.reduce)1f else pulse.value).clip(RoundedCornerShape(50)).background(Accent)
@@ -179,8 +208,8 @@ private fun number(n:Int)=NumberFormat.getIntegerInstance(Locale.forLanguageTag(
         Label(stringResource(R.string.adjustment,s.adjustment),24)
         Label(stringResource(R.string.manual),13,Muted)
         Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            Chunky("−5 ms",2,Modifier.weight(1f).semantics{contentDescription=description}){adjust(-5)}
-            Chunky("+5 ms",2,Modifier.weight(1f)){adjust(5)}
+            Chunky("−5 ms",2,Modifier.weight(1f).semantics{contentDescription=subtractDescription}){adjust(-5)}
+            Chunky("+5 ms",2,Modifier.weight(1f).semantics{contentDescription=addDescription}){adjust(5)}
         }
         Chunky(stringResource(R.string.save),onClick=save)
         Chunky(stringResource(R.string.repeat),1,onClick=repeat)
@@ -223,3 +252,17 @@ private fun number(n:Int)=NumberFormat.getIntegerInstance(Locale.forLanguageTag(
 @Preview @Composable private fun CalibrationPreview(){CalibrationScreen(MenuState(),{0.0},{},{},{},{},{})}
 @Preview(widthDp=320,heightDp=640,fontScale=1.3f) @Composable private fun SettingsPreview(){SettingsScreen(Settings(),{},{},{},{},{},{},{},{})}
 @Preview @Composable private fun AboutPreview(){SimpleScreen("Saltabeat","1.0.0 · MIT",{})}
+
+@Composable private fun Confetti() {
+    var target by remember{mutableFloatStateOf(0f)}
+    LaunchedEffect(Unit){target=1f}
+    val progress by animateFloatAsState(target,tween(1200,easing=LinearEasing),label="confetti")
+    val colors=remember{arrayOf(Gold,Accent,Color(0xFFB58CFF),Color(0xFFFF7A59))}
+    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+        if(progress<1f)for(i in 0 until 36) {
+            val x=((i*73)%360)/360f*size.width+kotlin.math.sin(progress*8+i)*20.dp.toPx()
+            val y=progress*size.height*(.5f+(i%7)/10f)-i%5*24.dp.toPx()
+            drawCircle(colors[i%4].copy(alpha=1-progress),3.dp.toPx(),androidx.compose.ui.geometry.Offset(x,y))
+        }
+    }
+}

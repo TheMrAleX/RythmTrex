@@ -52,16 +52,26 @@ dependencies {
     implementation(libs.datastore)
     debugImplementation(libs.compose.tooling)
     testImplementation(libs.junit)
-    testImplementation("org.robolectric:robolectric:4.14.1")
-    testImplementation("androidx.test:core:1.6.1")
-    testImplementation("androidx.compose.ui:ui-test-junit4")
-    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.42.0")
-    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.42.0")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    testImplementation(libs.robolectric)
+    testImplementation(libs.android.test.core)
+    testImplementation(libs.compose.test)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    debugImplementation(libs.compose.test.manifest)
 }
 
 tasks.withType<Test>().configureEach {
+    val testHome = rootProject.layout.buildDirectory.dir("test-home").get().asFile
+    testHome.mkdirs()
+    val fontCache=rootProject.layout.buildDirectory.dir("font-cache").get().asFile
+    fontCache.mkdirs()
+    environment("XDG_CACHE_HOME",fontCache.absolutePath)
+    systemProperty("user.home", testHome.absolutePath)
+    listOf("https.proxyHost", "https.proxyPort", "http.proxyHost", "http.proxyPort", "javax.net.ssl.trustStore").forEach { key ->
+        System.getProperty(key)?.let { systemProperty(key, it) }
+    }
     systemProperty("robolectric.graphicsMode", "NATIVE")
-    systemProperty("roborazzi.record", "true")
+    systemProperty("roborazzi.test.record", "true")
+    systemProperty("robolectric.pixelCopyRenderMode", "hardware")
     systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
 }

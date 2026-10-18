@@ -33,6 +33,6 @@ class MainActivity:ComponentActivity() {
             else {window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);manager.abandonAudioFocusRequest(focus)}
         } }
     }
-    override fun onStop() {model.pause();manager.abandonAudioFocusRequest(focus);super.onStop()}
+    override fun onStop() {window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);model.pause();manager.abandonAudioFocusRequest(focus);super.onStop()}
     override fun onDestroy() {model.haptic=null;super.onDestroy()}
 }

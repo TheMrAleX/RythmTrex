@@ -67,11 +67,13 @@ class GameViewModel @JvmOverloads constructor(app:Application,val audio:BeatAudi
         task?.cancel()
         mutable.update{it.copy(screen=Screen.COUNTDOWN,countdown=3)}
         val tempo=game?.tempo?:return
-        audio.start(Tempo(state.value.difficulty,100.0),clicksOnly=true)
+        val countBpm=tempo.bpmAt(if(resuming)pausedSong else 0.0)
+        val beatDuration=60/countBpm
+        audio.start(Tempo(state.value.difficulty,countBpm),clicksOnly=true,seed=Long.MIN_VALUE)
         task=viewModelScope.launch {
-            for(i in 0..3) {
-                mutable.update{it.copy(countdown=3-i)};audio.effect(2)
-                while(audio.time()<(i+1)*.6) delay(8)
+            for(i in 0..if(resuming)2 else 3) {
+                mutable.update{it.copy(countdown=3-i)}
+                while(audio.time()<(i+1)*beatDuration) delay(8)
             }
             audio.start(tempo,if(resuming)pausedSong else 0.0,seed=seed)
             mutable.update{it.copy(screen=Screen.GAME)}
@@ -117,6 +119,7 @@ class GameViewModel @JvmOverloads constructor(app:Application,val audio:BeatAudi
         mutable.update{it.copy(screen=Screen.CALIBRATION,calibrationCount=0,adjustment=it.settings.calibration)}
         audio.start(Tempo(Difficulty.NORMAL,100.0),clicksOnly=true)
     }
+    fun repeatCalibration()=calibrate(calibrationReturn)
     fun calibrationTap(uptimeMs:Long) {
         if(offsets.size>=8) return
         val t=audio.eventTime(uptimeMs,0)

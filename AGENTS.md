@@ -8,7 +8,7 @@
 
 ## Estado
 - [x] Fase 0: proyecto y documentación inicial.
-- [ ] Fase 1: motor y pruebas.
-- [ ] Fase 2: audio sintetizado y calibración.
-- [ ] Fases 3–4: pantallas, persistencia y accesibilidad.
+- [x] Fase 1: motor y pruebas.
+- [x] Fase 2: audio sintetizado y calibración.
+- [x] Fases 3–4: pantallas, persistencia y accesibilidad.
 - [ ] Fases 5–7: validación, release y documentación.

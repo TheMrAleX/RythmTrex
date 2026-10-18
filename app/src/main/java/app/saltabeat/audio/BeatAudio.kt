@@ -29,7 +29,7 @@ open class BeatAudio {
     private val effect=AtomicInteger(0)
     private var resumeTempo: Tempo?=null
     private var metronome=false
-    open fun effect(kind: Int) { effect.set(kind) }
+    open fun effect(kind: Int) { effect.getAndUpdate{it or (1 shl kind)} }
     @Synchronized open fun time(): Double {
         if(!running) return frozen
         val a=track
@@ -76,7 +76,7 @@ open class BeatAudio {
                 var frames=0L
                 while(running) {
                     val fx=effect.getAndSet(0)
-                    if(fx!=0) synth.trigger(fx)
+                    if(fx!=0) for(kind in 1..4) if(fx and (1 shl kind)!=0) synth.trigger(kind)
                     for(i in pcm.indices) pcm[i]=(synth.sample(offset+(frames+i)/44100.0,musicVolume,effectsVolume)*30000).toInt().coerceIn(-32768,32767).toShort()
                     var sent=0
                     while(sent<pcm.size && running) {

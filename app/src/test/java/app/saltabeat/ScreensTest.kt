@@ -11,7 +11,7 @@ import app.saltabeat.audio.BeatAudio
 import app.saltabeat.data.Settings
 import app.saltabeat.engine.*
 import app.saltabeat.ui.*
-import io.github.takahirom.roborazzi.captureRoboImage
+import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,8 +27,9 @@ class ScreensTest {
     @get:Rule val compose=createComposeRule()
     private fun capture(name:String) {
         val target=File("../docs/screens/$name.png")
-        target.parentFile.mkdirs()
+        target.parentFile?.mkdirs()
         compose.onRoot().captureRoboImage(target.absolutePath)
+        org.junit.Assert.assertTrue("Screenshot must exist: $target",target.isFile && target.length()>0)
     }
     @Test fun homeOpensDifficultyAndSelectionStartsRun() {
         var screen by mutableIntStateOf(0)
@@ -44,11 +45,16 @@ class ScreensTest {
         assert(selected==Difficulty.HARD)
         capture("difficulty-360x800")
     }
-    @Test fun homeReference(){compose.setContent{Box(Modifier.fillMaxSize().background(Sky)){HomeScreen(18200,{},{},{})}};capture("home-360x800")}
+    @Test fun homeReference(){compose.setContent{Box(Modifier.fillMaxSize().background(Sky)){GameCanvas(null,remember{BeatAudio()},Settings(),272.dp,false);HomeScreen(18200,{},{},{})}};capture("home-360x800")}
     @Test @Config(qualifiers="w320dp-h640dp-mdpi") fun compactSettingsAreScrollable() {
-        compose.setContent{SettingsScreen(Settings(),{},{},{},{},{},{},{},{})}
-        compose.onNodeWithText("Acerca de").performScrollTo().assertIsDisplayed()
+        compose.setContent{
+            val density=androidx.compose.ui.platform.LocalDensity.current
+            CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(density.density,1.3f)) {
+                SettingsScreen(Settings(),{},{},{},{},{},{},{},{})
+            }
+        }
         capture("settings-320x640")
+        compose.onNodeWithText("Acerca de").performScrollTo().assertIsDisplayed()
     }
     @Test @Config(qualifiers="w411dp-h914dp-mdpi") fun largeGame() {
         val game=Game(41,Difficulty.NORMAL);game.advance(1.5)
@@ -59,7 +65,7 @@ class ScreensTest {
         compose.setContent {
             val current=androidx.compose.ui.platform.LocalDensity.current
             CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(current.density,1.3f)) {
-                Box(Modifier.fillMaxSize().background(Sky)){HomeScreen(18200,{},{},{})}
+                Box(Modifier.fillMaxSize().background(Sky)){GameCanvas(null,remember{BeatAudio()},Settings(),272.dp,false);HomeScreen(18200,{},{},{})}
             }
         }
         compose.onNodeWithText("Ajustes").performScrollTo().assertIsDisplayed()
@@ -96,4 +102,15 @@ class ScreensTest {
         capture("practice-360x800")
     }
     @Test fun countdown() {compose.setContent{CountdownScreen(3)};capture("countdown-360x800")}
+    @Test @Config(qualifiers="w320dp-h640dp-mdpi") fun compactGameWithLargeText() {
+        val game=Game(41,Difficulty.HARD,width=320.0,padHeight=216.0);game.advance(1.1)
+        compose.setContent {
+            val density=androidx.compose.ui.platform.LocalDensity.current
+            CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(density.density,1.3f)) {
+                GameCanvas(game,remember{BeatAudio()},Settings(),240.dp,false)
+            }
+        }
+        capture("game-320x640-font130")
+    }
+
 }

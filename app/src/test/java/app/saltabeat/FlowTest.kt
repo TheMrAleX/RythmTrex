@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.roundToLong
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk=[35])
+@Config(sdk=[26,35])
 class FlowTest {
     private class Audio:BeatAudio() {
         var now=0.0
@@ -34,9 +34,10 @@ class FlowTest {
         }
         assertTrue("Timed out waiting for persisted/menu state",condition())
     }
-    private fun countdown(vm:GameViewModel,a:Audio) {
-        for(i in 1..4) {
-            a.now=i*.6+.001
+    private fun countdown(vm:GameViewModel,a:Audio,resuming:Boolean=false) {
+        val duration=60/vm.game!!.tempo.bpmAt(vm.game!!.time)
+        for(i in 1..if(resuming)3 else 4) {
+            a.now=i*duration+.001
             shadowOf(Looper.getMainLooper()).idleFor(30,TimeUnit.MILLISECONDS)
         }
         assertEquals(Screen.GAME,vm.state.value.screen)
@@ -56,7 +57,7 @@ class FlowTest {
         assertEquals(1,vm.game!!.score.perfects)
         vm.pause();assertEquals(Screen.PAUSE,vm.state.value.screen)
         val frozen=vm.game!!.time
-        vm.resume();countdown(vm,audio)
+        vm.resume();countdown(vm,audio,true)
         assertEquals(frozen,audio.time(),1e-9)
         while(vm.state.value.screen==Screen.GAME){audio.now+=1;vm.tick()}
         assertEquals(Screen.OVER,vm.state.value.screen)

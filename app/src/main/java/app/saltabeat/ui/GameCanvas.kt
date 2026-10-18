@@ -29,6 +29,7 @@ import kotlin.math.*
     val density=LocalDensity.current
     val context=LocalContext.current
     val description=stringResource(R.string.pad_description)
+    val statusTop=with(density){WindowInsets.statusBars.getTop(this).toDp().value}
     val judgments=arrayOf(stringResource(R.string.perfect),stringResource(R.string.great),stringResource(R.string.good),stringResource(R.string.early),stringResource(R.string.miss))
     val recordLabel=stringResource(R.string.record,"%s")
     val comboLabel=stringResource(R.string.combo,0).substringBefore('0')
@@ -51,13 +52,13 @@ import kotlin.math.*
         val unit=density.density
         val w=size.width/unit;val h=size.height/unit
         val time=if(attract)tick.longValue/1e9 else game?.time?:0.0
-        scale(unit,pivot=Offset.Zero) {art.draw(this,w,h,padHeight.value,time,game,settings,record,attract)}
+        scale(unit,pivot=Offset.Zero) {art.draw(this,w,h,padHeight.value,time,game,settings,record,attract,statusTop)}
     }
 }
 
 private class Art(typeface:android.graphics.Typeface?,private val words:Array<String>,private val recordLabel:String,
                   private val comboLabel:String,private val stageLabel:String,private val fontScale:Float) {
-    private val paint=Paint(Paint.ANTI_ALIAS_FLAG).apply{this.typeface=typeface;isFakeBoldText=true}
+    private val paint=Paint(Paint.ANTI_ALIAS_FLAG).apply{this.typeface=typeface;fontVariationSettings="'wght' 700";fontFeatureSettings="tnum"}
     private val path=Path()
     private val skyBrushes=arrayOf(
         Brush.verticalGradient(listOf(Sky,Color(0xFF4B1F6F)),endY=700f),
@@ -73,14 +74,14 @@ private class Art(typeface:android.graphics.Typeface?,private val words:Array<St
     private var oldScore=-1;private var scoreText="0"
     private var oldRecord=-1;private var recordText=""
     private var oldCombo=-1;private var comboText=""
-    private var oldMultiplier=-1;private var multiplierText=""
+    private var oldMultiplier=-1;private var multiplierText="";private var multiplierChanged=-10.0
     private var oldStage=-1;private var stageText=""
     private fun DrawScope.text(text:String,x:Float,y:Float,size:Float,color:Color,center:Boolean=false) {
         paint.color=color.toArgb();paint.textSize=size*fontScale
         paint.textAlign=if(center)Paint.Align.CENTER else Paint.Align.LEFT
         drawContext.canvas.nativeCanvas.drawText(text,x,y,paint)
     }
-    fun draw(d:DrawScope,w:Float,h:Float,pad:Float,t:Double,game:Game?,settings:Settings,record:Int,attract:Boolean) = with(d) {
+    fun draw(d:DrawScope,w:Float,h:Float,pad:Float,t:Double,game:Game?,settings:Settings,record:Int,attract:Boolean,statusTop:Float) = with(d) {
         val stage=game?.tempo?.stageAt(t)?:1
         val beat=game?.tempo?.beatAt(t)?:t*100/60
         val bpm=game?.tempo?.bpmAt(t)?:100.0
@@ -89,13 +90,17 @@ private class Art(typeface:android.graphics.Typeface?,private val words:Array<St
         val ground=h-pad-64
         val padTop=h-pad
         val speed=(280*bpm/100).toFloat()
+        val distance=beat*168
         val feedbackAge=(t-(game?.feedbackTime?:-10.0)).toFloat()
         val failed=game?.feedback?.points==0
         val shake=if(!settings.reduce && failed && feedbackAge in 0f.. .2f)sin(feedbackAge*110)*6*(1-feedbackAge/.2f) else 0f
         translate(left=shake) {
             drawRect(skyBrushes[(stage-1)%4],size=Size(w,h))
+            if(stage>1 && game?.tempo?.fixedBpm==null && beat%64<8) {
+                drawRect(skyBrushes[(stage-2)%4],size=Size(w,h),alpha=(1-beat%64/8).toFloat())
+            }
             for(i in 0..29) {
-                val x=((starsX[i]*w-t*speed*.1)%w+w).toFloat()%w
+                val x=((starsX[i]*w-distance*.1)%w+w).toFloat()%w
                 drawCircle(Color.White.copy(alpha=(.25+.3*(.5+.5*sin(t*.6+i))).toFloat()),if(i%3==0)2f else 1f,Offset(x,starsY[i]*ground))
             }
             val sunX=w*.5f
@@ -105,7 +110,7 @@ private class Art(typeface:android.graphics.Typeface?,private val words:Array<St
             drawCircle(Color(0xFFFFB36B),sunRadius-4,Offset(sunX,sunY),style=Stroke(2f))
             drawRect(Color(0xFF2A1650),Offset(0f,sunY),Size(w,ground-sunY))
             for(i in -1..12) {
-                val bx=((i*48-t*speed*.3)%(w+96)).toFloat()
+                val bx=(((i*48-distance*.3)%(w+96)+w+96)%(w+96)).toFloat()-48
                 val bh=24f+((i+10)*37%76)
                 drawRoundRect(Color(0xFF2A1650),Offset(bx,sunY-bh),Size(40f,ground-sunY+bh),CornerRadius(8f))
                 if(i%3==0)drawRect(Color(0xFF6C4BB5).copy(alpha=.25f),Offset(bx+14,sunY-bh+12),Size(4f,8f))
@@ -113,7 +118,7 @@ private class Art(typeface:android.graphics.Typeface?,private val words:Array<St
             drawRect(Color(0xFF0E0A1F),Offset(0f,ground),Size(w,padTop-ground))
             drawLine(Color(0xFF6C4BB5),Offset(0f,ground),Offset(w,ground),4f)
             for(i in 0..20) {
-                val xx=((i*32-t*speed)%(w+32)+w+32).toFloat()%(w+32)
+                val xx=((i*32-distance)%(w+32)+w+32).toFloat()%(w+32)
                 drawLine(Color(0xFF6C4BB5).copy(alpha=.35f),Offset(xx,ground+20+(i%3)*12),Offset(xx+12,ground+20+(i%3)*12),2f)
             }
             val runnerX=w*.22f
@@ -149,6 +154,11 @@ private class Art(typeface:android.graphics.Typeface?,private val words:Array<St
                     drawRoundRect(gold,Offset(runnerX-13+i*20,y-15-lift),Size(8f,14f),CornerRadius(3f))
                 }
             }
+            val landing=game?.jump?.let{t-it.start-it.duration}?:-1.0
+            if(landing in 0.0.. .10)for(i in 0..2) {
+                val age=landing.toFloat()
+                drawCircle(Color(0xFF6C4BB5).copy(alpha=1-age/.1f),2f+age*8,Offset(runnerX-20+i*20+(i-1)*age*80,ground-age*50))
+            }
             drawRoundRect(Color(0xFF120C26),Offset(0f,padTop),Size(w,pad+32),CornerRadius(32f))
             drawRoundRect(Color.White.copy(alpha=.10f+pulse*.25f),Offset(0f,padTop),Size(w,pad+32),CornerRadius(32f),style=Stroke(2f))
             for(x in 16..w.toInt() step 32)for(yDot in 32..pad.toInt() step 32)drawCircle(Color.White.copy(alpha=.04f),1.5f,Offset(x.toFloat(),padTop+yDot))
@@ -159,18 +169,25 @@ private class Art(typeface:android.graphics.Typeface?,private val words:Array<St
                 val cx=n.x.toFloat();val cy=padTop+n.y.toFloat()
                 val fade=((1.1-remaining)/.15).coerceIn(0.0,1.0).toFloat()
                 val radius=36+72*(remaining/1.1).coerceIn(0.0,1.0).toFloat()
+                scale(.8f+.2f*fade,pivot=Offset(cx,cy)) {
                 drawCircle(Color.White.copy(alpha=.9f*fade),radius,Offset(cx,cy),style=Stroke(6f))
                 drawCircle(Accent.copy(alpha=fade),36f,Offset(cx,cy))
                 drawCircle(Color.White.copy(alpha=fade),36f,Offset(cx,cy),style=Stroke(3f))
                 drawCircle(Color.White.copy(alpha=.35f*fade),12f,Offset(cx-12,cy-12))
                 if(n.part>0)text(if(n.part==1)"1" else "2",cx,cy+7,20f,Sky,true)
+                }
             }
             if(feedbackAge in 0f.. .6f && game?.feedback!=null) {
                 val j=game.feedback!!.ordinal;val color=judgeColors[j]
                 val x=game.feedbackX.toFloat();val yFeedback=padTop+game.feedbackY.toFloat()
-                if(feedbackAge<.25f) {
+                if(feedbackAge<.25f && !failed) {
                     drawCircle(color.copy(alpha=1-feedbackAge/.25f),36+44*feedbackAge/.25f,Offset(x,yFeedback),style=Stroke(4f))
                     for(i in 0..11)drawCircle(color.copy(alpha=1-feedbackAge/.25f),3f,Offset(x+dx[i]*feedbackAge*260,yFeedback+dy[i]*feedbackAge*260))
+                }
+                if(feedbackAge<.25f && failed) {
+                    val fade=1-feedbackAge/.25f
+                    drawCircle(Miss.copy(alpha=fade),18*fade,Offset(x-18-feedbackAge*40,yFeedback+feedbackAge*40))
+                    drawCircle(Miss.copy(alpha=fade),18*fade,Offset(x+18+feedbackAge*40,yFeedback+feedbackAge*40))
                 }
                 text(words[j],w/2,padTop-18-feedbackAge*40,22f,color.copy(alpha=1-feedbackAge/.6f),true)
             }
@@ -180,14 +197,24 @@ private class Art(typeface:android.graphics.Typeface?,private val words:Array<St
                 if(oldScore!=s.points){oldScore=s.points;scoreText=formatter.format(s.points)}
                 if(oldRecord!=record){oldRecord=record;recordText=recordLabel.replace("%s",formatter.format(record))}
                 if(oldCombo!=s.combo){oldCombo=s.combo;comboText=comboLabel+s.combo}
-                if(oldMultiplier!=s.multiplier){oldMultiplier=s.multiplier;multiplierText="x${s.multiplier}"}
+                if(oldMultiplier!=s.multiplier){oldMultiplier=s.multiplier;multiplierText="x${s.multiplier}";multiplierChanged=t}
                 if(oldStage!=stage){oldStage=stage;stageText=stageLabel+stage}
-                text(scoreText,20f,76f,36f,Color.White)
-                text(recordText,20f,100f,13f,Muted)
-                drawRoundRect(Accent,Offset(126f,51f),Size(38f,26f),CornerRadius(13f))
-                text(multiplierText,145f,70f,16f,Sky,true)
-                text(if(s.practice)"∞" else if(s.lives==3)"♥♥♥" else if(s.lives==2)"♥♥♡" else if(s.lives==1)"♥♡♡" else "♡♡♡",w-126,72f,22f,Miss)
-                if(s.combo>=5)text(comboText,w/2,h*.24f,18f,Gold,true)
+                text(scoreText,20f,statusTop+52f,if(w<340 && fontScale>1.1f)30f else 36f,Color.White)
+                text(recordText,20f,statusTop+76f,13f,Muted)
+                val age=t-multiplierChanged
+                val bounce=if(!settings.reduce && age in 0.0.. .15)1f+.25f*sin(age/.15*PI).toFloat() else 1f
+                scale(bounce,pivot=Offset(145f,statusTop+40f)) {
+                    drawRoundRect(Accent,Offset(126f,statusTop+27f),Size(38f,26f),CornerRadius(13f))
+                    text(multiplierText,145f,statusTop+46f,16f,Sky,true)
+                }
+                val heartsY=if(w<340 && fontScale>1.1f)statusTop+82f else statusTop+48f
+                if(s.practice)text("∞",w-126,heartsY,24f,Accent)
+                else for(i in 0..2)text(if(i<s.lives)"♥" else "♡",w-126+i*24,heartsY,24f,if(i<s.lives)Miss else Color.White.copy(alpha=.3f))
+                if(s.combo>=5) {
+                    val comboBounce=if(!settings.reduce && !failed && feedbackAge in 0f.. .15f)1+.15f*sin(feedbackAge/.15f*PI).toFloat() else 1f
+                    scale(comboBounce,pivot=Offset(w/2,h*.24f)){text(comboText,w/2,h*.24f,18f,Gold,true)}
+                }
+                if(failed && feedbackAge in 0f.. .5f)text("♥",w-120,statusTop+76+feedbackAge*70,24f,Miss.copy(alpha=1-feedbackAge/.5f))
                 val sinceStage=beat%64*60/bpm
                 if(stage>1 && sinceStage<1.2) {
                     val slide=((sinceStage/1.2)*2-1).toFloat()
