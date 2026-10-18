@@ -32,3 +32,4 @@
 
 ## Validación en GitHub
 - La primera ejecución CI (39097010514) falló en setup-android antes de Gradle. Los logs requieren autenticación y la API está bloqueada; la metadata pública permite identificar el paso. Se fija CLI Android 12 (11076708), la misma versión con checksum oficial ya validada localmente, y Ubuntu 24.04 para evitar cambios del runner ubuntu-latest. Se actualizan checkout/setup-java a v5, con Node 24.
+- setup-android incluye por defecto el paquete legado `tools`, ausente en el índice oficial actual de Google. Se solicita únicamente `platform-tools`; plataformas/build-tools se instalan explícitamente después, como en el setup local comprobado.
