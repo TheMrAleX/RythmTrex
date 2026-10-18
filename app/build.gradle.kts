@@ -37,6 +37,8 @@ android {
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
     lint { abortOnError = true }
+    testOptions { unitTests.isIncludeAndroidResources = true }
+
 }
 dependencies {
     implementation(project(":engine"))
@@ -50,4 +52,16 @@ dependencies {
     implementation(libs.datastore)
     debugImplementation(libs.compose.tooling)
     testImplementation(libs.junit)
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("androidx.test:core:1.6.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.42.0")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.42.0")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+tasks.withType<Test>().configureEach {
+    systemProperty("robolectric.graphicsMode", "NATIVE")
+    systemProperty("roborazzi.record", "true")
+    systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
 }

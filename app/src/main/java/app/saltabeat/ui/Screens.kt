@@ -19,6 +19,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.saltabeat.*
+import app.saltabeat.R
 import app.saltabeat.data.Settings
 import app.saltabeat.engine.*
 import java.text.NumberFormat
@@ -122,7 +123,9 @@ private fun number(n:Int)=NumberFormat.getIntegerInstance(Locale.forLanguageTag(
     }
 }
 @Composable fun CountdownScreen(count:Int) {
-    val scale by animateFloatAsState(1f,tween(250),label="countdown")
+    var target by remember{mutableFloatStateOf(1.4f)}
+    LaunchedEffect(count){target=1.4f;kotlinx.coroutines.delay(16);target=1f}
+    val scale by animateFloatAsState(target,tween(250),label="countdown")
     Box(Modifier.fillMaxSize().background(Sky.copy(alpha=.25f)),contentAlignment=Alignment.Center){Label(if(count==0)stringResource(R.string.go) else count.toString(),96,Gold,Modifier.scale(scale))}
 }
 @Composable fun PauseScreen(resume:()->Unit,restart:()->Unit,exit:()->Unit) {
@@ -130,7 +133,9 @@ private fun number(n:Int)=NumberFormat.getIntegerInstance(Locale.forLanguageTag(
 }
 @Composable fun OverScreen(game:Game?,record:Boolean,again:()->Unit,menu:()->Unit) {
     val score=game?.score
-    val animated by animateIntAsState(score?.points?:0,tween(800),label="final score")
+    var target by remember{mutableIntStateOf(0)}
+    LaunchedEffect(score){target=score?.points?:0}
+    val animated by animateIntAsState(target,tween(800),label="final score")
     Overlay(.6f) {
         Label(stringResource(R.string.game_over),24)
         Label(number(animated),56,Gold)

@@ -17,6 +17,7 @@ class BeatAudio {
     @Volatile private var offset=0.0
     private var baseNanos=0L
     private var frozen=0.0
+    private var lastTime=0.0
     private val timestamp=AudioTimestamp()
     private var lastHead=0L
     private var wraps=0L
@@ -39,14 +40,17 @@ class BeatAudio {
                 (h+wraps).toDouble()/44100
             }
         } else (System.nanoTime()-baseNanos)/1e9
-        return max(frozen,offset+elapsed)
+        val stalled=elapsed==0.0 && (System.nanoTime()-baseNanos)>300_000_000L
+        val seconds=if(stalled)(System.nanoTime()-baseNanos)/1e9 else elapsed
+        lastTime=max(lastTime,offset+seconds)
+        return lastTime
     }
     fun eventTime(uptimeMs: Long,calibrationMs: Int): Double =
         app.saltabeat.engine.InputClock.songTime(uptimeMs,SystemClock.uptimeMillis(),time(),calibrationMs)
     @Synchronized fun start(tempo: Tempo, from: Double=0.0, clicksOnly: Boolean=false, seed: Long=0L) {
         stop()
         resumeTempo=tempo;metronome=clicksOnly
-        offset=from;frozen=from;lastHead=0;wraps=0;written=0
+        offset=from;frozen=from;lastTime=from;lastHead=0;wraps=0;written=0
         baseNanos=System.nanoTime();running=true
         try {
             val min=AudioTrack.getMinBufferSize(44100,AudioFormat.CHANNEL_OUT_MONO,AudioFormat.ENCODING_PCM_16BIT)

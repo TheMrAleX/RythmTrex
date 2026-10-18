@@ -77,7 +77,9 @@ class GameViewModel(app:Application):AndroidViewModel(app) {
         if(state.value.screen!=Screen.GAME) return
         val g=game?:return
         val before=g.feedbackTime
+        val stage=g.tempo.stageAt(g.time)
         g.advance(audio.time())
+        if(g.tempo.stageAt(g.time)>stage) audio.effect(4)
         if(g.feedbackTime!=before && g.feedback==Judgment.MISS) audio.effect(3)
         if(g.over) {
             audio.pause()

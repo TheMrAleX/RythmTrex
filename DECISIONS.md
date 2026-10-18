@@ -10,3 +10,9 @@
 - La posición de obstáculos usa la velocidad del BPM en la hora de encuentro (constante por obstáculo); evita teletransportes al cambiar el tempo y conserva x=runnerX+speed*(Tobs-t).
 - Los círculos se alternan entre dos puntos seguros separados al menos 150dp; aleatoriedad acotada por semilla. En 320dp se colocan en diagonal para respetar los márgenes y distancia.
 - El reloj no resta dos veces latencia: AudioTimestamp ya describe presentación; playbackHeadPosition usa una estimación conservadora y el fallback monotónico conserva el punto de pausa.
+
+## Resolución de restricciones incompatibles
+- El doble salto usa al menos 0,65 s entre golpes: además del mínimo de 0,5 s, evita que tres círculos estén simultáneamente activos (1,1 s de aproximación más hasta 168 ms de ventana). Así se puede garantizar una distancia de 150dp con solo dos zonas seguras en pantallas de 320dp.
+- La fórmula D=max(0,5*airtime,2*(Tobs-t0)) puede mover el vértice después del obstáculo en un acierto tardío. Se conserva D y se usa una parábola asimétrica por tramos para mantener el vértice en Tobs.
+- La exigencia de que nunca se crucen visualmente las cajas incluso antes de un toque tardío no es compatible con todas las dimensiones y ventanas dadas. Ejemplo: Fácil, 130 BPM, toque +168 ms: el obstáculo está a 22,8dp del centro del personaje al iniciar el salto, menos que los semianchos combinados. Se juzga la colisión en el encuentro, como requiere la fórmula de timing; el acierto neutraliza y disuelve inmediatamente el obstáculo. El test de geometría garantiza altura al encuentro, no una ausencia de solapamiento anterior al toque.
+- El rendimiento de 60/120 fps y la latencia Bluetooth necesitan un dispositivo real. Se solicita 120 Hz al sistema; no se afirma una medición que no se ha realizado.
