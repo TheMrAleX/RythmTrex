@@ -52,3 +52,14 @@ La clave efímera de la compilación local difiere de la que crea el workflow: p
 instalar una encima de otra hace falta usar una clave estable o desinstalar primero.
 
 Para revisar el resultado sin CLI: https://github.com/TheMrAleX/RythmTrex/releases/tag/v1.0.0
+
+Si un push de tag no agenda una ejecución (por ejemplo, a través de un proxy Git),
+se puede disparar el mismo workflow manualmente sobre el tag existente:
+
+```sh
+gh workflow run release.yml --repo TheMrAleX/RythmTrex --ref main -f tag=v1.0.0
+```
+
+Alternativa sin API: abrir Actions → Release → Run workflow, introducir `v1.0.0`
+y ejecutar. El workflow hace checkout del tag solicitado y verifica la versión.
+No es necesario crear ni sobrescribir una release manualmente.

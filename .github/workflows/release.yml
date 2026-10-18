@@ -2,18 +2,27 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag existente que publicar'
+        required: true
+        default: v1.0.0
 permissions:
   contents: write
 jobs:
   release:
     runs-on: ubuntu-24.04
     env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
       KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
       KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
       KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
       KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -32,7 +41,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           grep -Fq "versionName = \"$VERSION\"" app/build.gradle.kts
           mkdir -p dist
           APK="Saltabeat-v${VERSION}-arm64-v8a.apk"
@@ -43,7 +52,7 @@ jobs:
       - name: Publish release assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --title "Saltabeat $GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$RELEASE_TAG" dist/* --verify-tag --title "Saltabeat $RELEASE_TAG" --generate-notes
       - name: Remove ephemeral signing material
         if: always()
         run: rm -f "$RUNNER_TEMP/saltabeat-release.jks"
