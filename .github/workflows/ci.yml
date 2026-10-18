@@ -18,6 +18,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - run: ./gradlew --no-daemon :engine:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+      - run: scripts/verify-apk.sh app/build/outputs/apk/debug/app-debug.apk
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -25,6 +26,7 @@ jobs:
           path: |
             engine/build/reports/tests
             app/build/reports
+            docs/screens
       - uses: actions/upload-artifact@v4
         with:
           name: Saltabeat-debug

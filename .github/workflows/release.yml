@@ -34,7 +34,7 @@ jobs:
           mkdir -p dist
           APK="Saltabeat-v${VERSION}-arm64-v8a.apk"
           cp app/build/outputs/apk/release/app-release.apk "dist/$APK"
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "dist/$APK"
+          scripts/verify-apk.sh "dist/$APK"
           cd dist
           sha256sum "$APK" > "$APK.sha256"
       - name: Publish release assets
