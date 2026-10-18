@@ -29,3 +29,6 @@
 
 - El Muro se resuelve como dos segmentos de 56×72dp ligados por los números 1/2. Un único bloque continuo que durase al menos 0,65 s en el punto del corredor sería incompatible con un airtime de 0,45 s y el mínimo de separación entre círculos. La pareja conserva el requisito de acertar dos saltos sin generar un tramo sólido insuperable.
 - El pad incluye la barra de navegación dentro del límite de 240–320dp; el generador recibe su altura útil descontando ese inset. En 320dp hay al menos 192dp horizontales entre los extremos aleatorios, suficiente para garantizar 150dp incluso con un pad compacto.
+
+## Validación en GitHub
+- La primera ejecución CI (39097010514) falló en setup-android antes de Gradle. Los logs requieren autenticación y la API está bloqueada; la metadata pública permite identificar el paso. Se fija CLI Android 12 (11076708), la misma versión con checksum oficial ya validada localmente, y Ubuntu 24.04 para evitar cambios del runner ubuntu-latest. Se actualizan checkout/setup-java a v5, con Node 24.
