@@ -39,3 +39,16 @@ Para firmar localmente, exporta `KEYSTORE_PATH` (ruta absoluta), `KEYSTORE_PASSW
 ./gradlew :app:assembleRelease
 $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose app/build/outputs/apk/release/app-release.apk
 ```
+
+## Evidencia local y limitación de la API
+
+Se generó y verificó un APK release firmado en
+`/workspace/artifacts/Saltabeat-v1.0.0-arm64-v8a.apk`, con su `.sha256`.
+`scripts/verify-apk.sh` comprueba firma, VIBRATE como único permiso, SDK y ARM64.
+La API `api.github.com` está bloqueada por el proxy de este entorno; una consulta
+`gh api` devuelve Forbidden, aunque Git HTTPS y la web de github.com funcionan.
+El workflow puede publicar desde el runner de GitHub con su propio GITHUB_TOKEN.
+La clave efímera de la compilación local difiere de la que crea el workflow: para
+instalar una encima de otra hace falta usar una clave estable o desinstalar primero.
+
+Para revisar el resultado sin CLI: https://github.com/TheMrAleX/RythmTrex/releases/tag/v1.0.0

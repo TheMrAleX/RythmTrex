@@ -52,3 +52,7 @@ PANTALLAS
 7) TUTORIAL (solo la primera vez, interactivo, 3 pasos con globos de texto 16sp sobre velo): 1 "Un obstáculo se acerca", 2 "Toca el círculo cuando el anillo lo alcance" (el juego se pausa suavemente hasta que lo toca), 3 "¡Sigue el ritmo!". Omitible.
 8) CALIBRACIÓN: fondo bg, círculo grande de 120dp en el centro que pulsa a 100 BPM, texto "Toca cada vez que lo veas y escuches pulsar", contador 0/8, al final muestra "Tu ajuste: +42 ms" con botones "Guardar" y "Repetir".
 9) AJUSTES: filas de 64dp en tarjeta surface radio 28dp: Música (slider), Efectos (slider), Vibración (switch), Reducir efectos (switch), Calibración de audio (abre la pantalla 8 + ajuste manual ±), Borrar récords (con diálogo), Acerca de (versión, licencia MIT y aviso "No está afiliado a ningún juego existente"). Switches propios: pista 52x32dp, activo accent, círculo blanco 24dp.
+
+RENDIMIENTO
+- Un único Canvas con bucle por withFrameNanos; objetos pre-asignados (Paths, Paints, pools de partículas máx. 120), sin asignaciones en el bucle de dibujo. Objetivo 60 fps en gama media, 120 en pantallas que lo permitan (declara preferredRefreshRate/ frame rate hint).
+- El estado del marcador se lee solo dentro del DrawScope o en composables mínimos para evitar recomposiciones por frame.

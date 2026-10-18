@@ -11,4 +11,8 @@
 - [x] Fase 1: motor y pruebas.
 - [x] Fase 2: audio sintetizado y calibración.
 - [x] Fases 3–4: pantallas, persistencia y accesibilidad.
-- [ ] Fases 5–7: validación, release y documentación.
+- [x] Fase 5: 25 tests sin fallos/omisiones, lint debug/release y ambos APK verificados.
+- [ ] Fase 6: publicar y verificar v1.0.0 en GitHub.
+- [x] Fase 7: README, licencia, decisiones, especificación y capturas.
+
+No hay dispositivo físico: sonido, Bluetooth y fps requieren comprobación real; ver docs/QA.md.
