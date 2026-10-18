@@ -29,6 +29,25 @@ Los informes originales permanecen en `engine/build/reports` y `app/build/report
 Las capturas se regeneran al ejecutar `:app:testDebugUnitTest`; no se omiten tests
 para que un resultado parezca correcto.
 
+## Comprobación en GitHub
+
+CI completado correctamente en el runner Ubuntu 24.04:
+https://github.com/TheMrAleX/RythmTrex/actions/runs/39097258398
+Incluye build debug, tests, lint y verificación de permisos/SDK/ABI/firma del APK.
+
+Release completada correctamente:
+https://github.com/TheMrAleX/RythmTrex/actions/runs/39097386264
+
+Publicado `Saltabeat-v1.0.0-arm64-v8a.apk` y su `.sha256` en
+https://github.com/TheMrAleX/RythmTrex/releases/tag/v1.0.0
+Ambos archivos se descargaron desde esa página y se verificaron checksum, firma,
+paquete, SDK, VIBRATE como único permiso y ABI arm64-v8a.
+
+SHA256 del APK publicado: `73192fecbdf317c2e92fbcf37efa83ddaa6d4e9506c2197c230fe7d492997faa`.
+
+La clave efímera local y sus contraseñas temporales se eliminaron después del build;
+la clave efímera del workflow también se eliminó en su paso de limpieza.
+
 ## Límites de la comprobación
 
 No hay teléfono ni emulador Android con audio real conectado. No se ha medido fps,

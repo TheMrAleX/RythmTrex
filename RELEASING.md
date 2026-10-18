@@ -63,3 +63,13 @@ gh workflow run release.yml --repo TheMrAleX/RythmTrex --ref main -f tag=v1.0.0
 Alternativa sin API: abrir Actions → Release → Run workflow, introducir `v1.0.0`
 y ejecutar. El workflow hace checkout del tag solicitado y verifica la versión.
 No es necesario crear ni sobrescribir una release manualmente.
+
+## Release verificada
+
+v1.0.0 está publicada con APK firmado y SHA256:
+https://github.com/TheMrAleX/RythmTrex/releases/tag/v1.0.0
+
+Workflow correcto: https://github.com/TheMrAleX/RythmTrex/actions/runs/39097386264
+Se descargaron ambos adjuntos y se volvió a comprobar checksum, firma, paquete,
+SDK y ABI. La copia descargada está en `/workspace/artifacts/github-release/`.
+La clave de firma local temporal fue eliminada; no existe ningún keystore versionado.

@@ -12,7 +12,9 @@
 - [x] Fase 2: audio sintetizado y calibración.
 - [x] Fases 3–4: pantallas, persistencia y accesibilidad.
 - [x] Fase 5: 25 tests sin fallos/omisiones, lint debug/release y ambos APK verificados.
-- [ ] Fase 6: publicar y verificar v1.0.0 en GitHub.
+- [x] Fase 6: v1.0.0 publicada en GitHub; APK firmado y SHA256 descargados y verificados.
+  Release: https://github.com/TheMrAleX/RythmTrex/releases/tag/v1.0.0
+  Workflow correcto: https://github.com/TheMrAleX/RythmTrex/actions/runs/39097386264
 - [x] Fase 7: README, licencia, decisiones, especificación y capturas.
 
 No hay dispositivo físico: sonido, Bluetooth y fps requieren comprobación real; ver docs/QA.md.

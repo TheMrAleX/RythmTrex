@@ -5,6 +5,8 @@ Funciona íntegramente offline: sin cuenta, red, anuncios ni analytics; solo sol
 VIBRATE. Música sintetizada, personaje y arte originales. No está afiliado a ningún
 juego existente.
 
+[Descargar APK firmado v1.0.0 (ARM64)](https://github.com/TheMrAleX/RythmTrex/releases/download/v1.0.0/Saltabeat-v1.0.0-arm64-v8a.apk) · [Release y SHA256](https://github.com/TheMrAleX/RythmTrex/releases/tag/v1.0.0)
+
 ## Cómo jugar
 
 1. En **Jugar**, elige Fácil (90–130 BPM), Normal (100–160) o Difícil (115–180).
