@@ -13,12 +13,11 @@ enum class Screen { HOME, DIFFICULTY, PRACTICE, COUNTDOWN, GAME, PAUSE, OVER, TU
 data class MenuState(val screen:Screen=Screen.HOME,val settings:Settings=Settings(),val loaded:Boolean=false,
                      val difficulty:Difficulty=Difficulty.NORMAL,val practiceBpm:Int=100,val practiceStage:Int=1,
                      val countdown:Int=3,val tutorialStep:Int=0,val calibrationCount:Int=0,val adjustment:Int=0,
-                     val newRecord:Boolean=false)
-class GameViewModel(app:Application):AndroidViewModel(app) {
+                     val newRecord:Boolean=false,val points:Int=0,val lives:Int=3,val judgment:Judgment?=null)
+class GameViewModel @JvmOverloads constructor(app:Application,val audio:BeatAudio=BeatAudio()):AndroidViewModel(app) {
     private val prefs=Preferences(app)
     private val mutable=MutableStateFlow(MenuState())
     val state=mutable.asStateFlow()
-    val audio=BeatAudio()
     var game:Game?=null;private set
     var haptic:((Boolean)->Unit)?=null
     var width=360.0
@@ -50,15 +49,20 @@ class GameViewModel(app:Application):AndroidViewModel(app) {
     fun newRun(isPractice:Boolean=practice) {
         task?.cancel();audio.stop();practice=isPractice;seed=System.nanoTime()
         val s=state.value
-        game=Game(seed,s.difficulty,if(practice)s.practiceBpm.toDouble() else null,s.practiceStage,width,padHeight)
-        if(!s.settings.tutorial) {mutable.update{it.copy(screen=Screen.TUTORIAL,tutorialStep=0)};return}
+        game=Game(seed,s.difficulty,if(practice)s.practiceBpm.toDouble() else null,s.practiceStage,width,padHeight,s.settings.calibration)
+        if(!s.settings.tutorial) {game?.let{it.advance((it.notes.first().hit-.4).coerceAtLeast(0.0))};mutable.update{it.copy(screen=Screen.TUTORIAL,tutorialStep=0)};return}
         countdown(false)
     }
     fun tutorialNext() {
         if(state.value.tutorialStep<2) mutable.update{it.copy(tutorialStep=it.tutorialStep+1)}
         else tutorialDone()
     }
-    fun tutorialDone() {viewModelScope.launch{prefs.toggle("tutorial",true)};countdown(false)}
+    fun tutorialDone() {
+        viewModelScope.launch{prefs.toggle("tutorial",true)}
+        val s=state.value
+        game=Game(seed,s.difficulty,if(practice)s.practiceBpm.toDouble() else null,s.practiceStage,width,padHeight,s.settings.calibration)
+        countdown(false)
+    }
     private fun countdown(resuming:Boolean) {
         task?.cancel()
         mutable.update{it.copy(screen=Screen.COUNTDOWN,countdown=3)}
@@ -77,10 +81,12 @@ class GameViewModel(app:Application):AndroidViewModel(app) {
         if(state.value.screen!=Screen.GAME) return
         val g=game?:return
         val before=g.feedbackTime
+        val previousLives=g.score.lives
         val stage=g.tempo.stageAt(g.time)
         g.advance(audio.time())
         if(g.tempo.stageAt(g.time)>stage) audio.effect(4)
         if(g.feedbackTime!=before && g.feedback==Judgment.MISS) audio.effect(3)
+        if(g.feedbackTime!=before || previousLives!=g.score.lives) mutable.update{it.copy(points=g.score.points,lives=g.score.lives,judgment=g.feedback)}
         if(g.over) {
             audio.pause()
             val record=g.score.points>state.value.settings.record(state.value.difficulty)
@@ -93,13 +99,14 @@ class GameViewModel(app:Application):AndroidViewModel(app) {
         if(s.screen!=Screen.GAME) return
         val g=game?:return
         val j=g.tap(audio.eventTime(uptimeMs,s.settings.calibration),x,y)?:return
+        mutable.update{it.copy(points=g.score.points,lives=g.score.lives,judgment=j)}
         audio.effect(if(j.points==0)3 else if(j==Judgment.PERFECT)1 else 2)
         if(g.lifeGained) audio.effect(4)
         if(s.settings.vibration) haptic?.invoke(j==Judgment.PERFECT)
     }
     fun pause() {
         if(state.value.screen==Screen.GAME || state.value.screen==Screen.COUNTDOWN) {
-            task?.cancel();pausedSong=game?.time?:0.0;audio.pause();mutable.update{it.copy(screen=Screen.PAUSE)}
+            task?.cancel();pausedSong=if(state.value.screen==Screen.GAME)audio.time() else game?.time?:0.0;game?.advance(pausedSong);audio.pause();mutable.update{it.copy(screen=Screen.PAUSE)}
         } else if(state.value.screen==Screen.CALIBRATION) {
             audio.stop();task?.cancel();mutable.update{it.copy(screen=calibrationReturn)}
         }
@@ -113,7 +120,7 @@ class GameViewModel(app:Application):AndroidViewModel(app) {
     fun calibrationTap(uptimeMs:Long) {
         if(offsets.size>=8) return
         val t=audio.eventTime(uptimeMs,0)
-        val beat=((t-1.2)/.6).toInt().let{ kotlin.math.round((t-1.2)/.6).toInt() }
+        val beat=kotlin.math.round((t-1.2)/.6).toInt()
         if(beat !in 0..7 || beat==lastCalibrationBeat || kotlin.math.abs(t-(1.2+beat*.6))>.3) return
         lastCalibrationBeat=beat;offsets.add((t-(1.2+beat*.6))*1000)
         mutable.update{it.copy(calibrationCount=offsets.size)}

@@ -93,4 +93,24 @@ class EngineTest {
         assertEquals(2,g.score.lives)
         g.advance(g.time+.001);assertEquals(2,g.score.lives)
     }
+    @Test fun calibratedBotUsesActualDeliveryTimeNotFutureEvents() {
+        for(calibration in listOf(-300,300)) {
+            val g=Game(771,Difficulty.HARD,inputLatencyMs=calibration)
+            val schedule=Patterns(771,g.tempo)
+            var n=schedule.next()
+            var t=0.0;var count=0
+            while(t<600) {
+                g.advance(t)
+                while(n.hit+calibration/1000.0<=t) {
+                    val event=((n.hit+calibration/1000.0)*1000).roundToLong()
+                    val corrected=InputClock.songTime(event,0,0.0,calibration)
+                    assertEquals(Judgment.PERFECT,g.tap(corrected,n.x,n.y))
+                    n=schedule.next();count++
+                }
+                assertEquals(3,g.score.lives);t+=.005
+            }
+            assertTrue(count>400)
+        }
+    }
+
 }

@@ -113,13 +113,13 @@ object Judge {
     }
 }
 
-data class Jump(val start: Double, val encounter: Double, val duration: Double) {
+data class Jump(val start: Double, val encounter: Double, val duration: Double, val initialHeight: Double=0.0) {
     /** Asymmetric parabola when the minimum duration would move the apex past the obstacle. */
     fun heightAt(time: Double): Double {
-        if(time<=start || time>=start+duration) return 0.0
+        if(time<start || time>=start+duration) return 0.0
         val rise=max(.001,encounter-start)
         val f=if(time<=encounter) (time-start)/rise else (start+duration-time)/max(.001,start+duration-encounter)
-        return 96*(1-(1-f.coerceIn(0.0,1.0)).pow(2))
+        return if(time<=encounter) 96-(96-initialHeight)*(1-f.coerceIn(0.0,1.0)).pow(2) else 96*(1-(1-f.coerceIn(0.0,1.0)).pow(2))
     }
 }
 
@@ -166,9 +166,10 @@ object Calibration {
 }
 
 class Game(seed: Long, val difficulty: Difficulty, practiceBpm: Double?=null, practiceStage: Int=1,
-           width: Double=360.0, padHeight: Double=240.0) {
+           width: Double=360.0, padHeight: Double=240.0, inputLatencyMs: Int=0) {
     val tempo=Tempo(difficulty,practiceBpm,practiceStage)
     private val patterns=Patterns(seed,tempo,width,padHeight)
+    private val deliveryGrace=max(0,inputLatencyMs.coerceIn(-300,300))/1000.0
     val notes=ArrayList<Note>(32)
     val score=Score(practiceBpm!=null)
     var jump: Jump?=null; private set
@@ -186,7 +187,7 @@ class Game(seed: Long, val difficulty: Difficulty, practiceBpm: Double?=null, pr
         time=max(time,songTime)
         while(next.hit<time+3) { notes.add(next);next=patterns.next() }
         for(n in notes) {
-            if(n.judgment==null && time>n.hit+.140*difficulty.window+1e-9) {
+            if(n.judgment==null && time>n.hit+.140*difficulty.window+deliveryGrace+1e-9) {
                 n.judgment=Judgment.MISS;score.breakCombo();show(n,Judgment.MISS,time)
             }
             if(!n.collided && time>=n.encounter && n.judgment?.points==0) {
@@ -210,7 +211,7 @@ class Game(seed: Long, val difficulty: Difficulty, practiceBpm: Double?=null, pr
         n.judgment=j
         if(j.points>0) {
             lifeGained=score.hit(j)
-            jump=Jump(songTime,n.encounter,max(.5*n.air,2*(n.encounter-songTime)))
+            jump=Jump(songTime,n.encounter,max(.5*n.air,2*(n.encounter-songTime)),jump?.heightAt(songTime)?:0.0)
         } else {score.breakCombo();lifeGained=false}
         show(n,j,songTime)
         return j
