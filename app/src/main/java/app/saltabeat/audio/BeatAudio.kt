@@ -43,7 +43,7 @@ class BeatAudio {
     }
     fun eventTime(uptimeMs: Long,calibrationMs: Int): Double =
         app.saltabeat.engine.InputClock.songTime(uptimeMs,SystemClock.uptimeMillis(),time(),calibrationMs)
-    @Synchronized fun start(tempo: Tempo, from: Double=0.0, clicksOnly: Boolean=false) {
+    @Synchronized fun start(tempo: Tempo, from: Double=0.0, clicksOnly: Boolean=false, seed: Long=0L) {
         stop()
         resumeTempo=tempo;metronome=clicksOnly
         offset=from;frozen=from;lastHead=0;wraps=0;written=0
@@ -60,7 +60,7 @@ class BeatAudio {
             val active=track!!
             thread=Thread({
                 Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-                val synth=Synth(tempo,clicksOnly)
+                val synth=Synth(tempo,clicksOnly,seed)
                 val pcm=ShortArray(256)
                 var frames=0L
                 while(running) {
@@ -93,12 +93,14 @@ class BeatAudio {
 }
 
 /** Original procedural score. Envelopes derive from absolute song phase, never a frame delta. */
-private class Synth(private val tempo: Tempo,private val clicksOnly: Boolean) {
+private class Synth(private val tempo: Tempo,private val clicksOnly: Boolean,seed:Long) {
     private var noise=0x7a51
     private var fx=0
     private var fxAge=100.0
     private val chords=arrayOf(intArrayOf(45,48,52,43),intArrayOf(48,55,57,53),intArrayOf(50,53,57,48),intArrayOf(43,47,50,45))
-    private val progression=chords[(tempo.difficulty.ordinal+tempo.practiceStage)%4]
+    private val progression=chords[kotlin.random.Random(seed).nextInt(4)]
+    private val arpNotes=intArrayOf(0,3,7,12)
+    private var previousNoise=0.0
     fun trigger(kind: Int) {fx=kind;fxAge=0.0}
     private fun random():Double {noise=noise xor (noise shl 13);noise=noise xor (noise ushr 17);noise=noise xor (noise shl 5);return noise.toDouble()/Int.MAX_VALUE}
     private fun hz(midi:Int)=440*2.0.pow((midi-69)/12.0)
@@ -109,13 +111,14 @@ private class Synth(private val tempo: Tempo,private val clicksOnly: Boolean) {
         val beatIndex=floor(beat).toInt()
         val stage=tempo.stageAt(t)
         val n=random()
+        val high=n-previousNoise;previousNoise=n
         var out=0.0
         if(clicksOnly) {
             if(beatIndex in 2..9 && second<.035) out=sin(2*PI*1100*second)*exp(-second*100)*.6
         } else {
             if(second<.12) out+=sin(2*PI*(45*second+105*.024*(1-exp(-second/.024))))*exp(-second*30)*.6
             val half=beat*2-floor(beat*2)
-            if(half<.09) out+=n*(if(noise and 1==0)1 else -1)*exp(-half*40)*.16
+            if(half<.09) out+=high*exp(-half*40)*.16
             val root=progression[(floor(beat/16).toInt()%4+4)%4]
             if(stage>=2) {
                 val f=hz(root)
@@ -125,7 +128,7 @@ private class Synth(private val tempo: Tempo,private val clicksOnly: Boolean) {
             }
             if(stage>=3) {
                 if(beatIndex%4==1 || beatIndex%4==3) if(second<.09) out+=(n*.8+sin(2*PI*180*second)*.2)*exp(-second*40)*.24
-                val arp=intArrayOf(0,3,7,12)[floor(beat*2).toInt() and 3]
+                val arp=arpNotes[floor(beat*2).toInt() and 3]
                 val f=hz(root+24+arp)
                 val square=if((t*f)%1<.25) .18 else -.06
                 out+=square*exp(-half*6)*.4

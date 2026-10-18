@@ -180,7 +180,7 @@ class Game(seed: Long, val difficulty: Difficulty, practiceBpm: Double?=null, pr
     var time=0.0; private set
     val over get()=score.lives==0
     private var next=patterns.next()
-    init { advance(0.0) }
+    init { notes.add(next);next=patterns.next();advance(0.0) }
     fun advance(songTime: Double) {
         if(over) return
         time=max(time,songTime)
